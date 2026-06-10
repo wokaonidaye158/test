@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://e-library.stkipbudidaya.ac.id/sitemap.xml
